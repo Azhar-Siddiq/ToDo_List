@@ -1,0 +1,433 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Professional Todo Manager</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gradient-to-br from-gray-100 to-gray-200 min-h-screen flex items-center justify-center p-4">
+    <div class="w-full max-w-2xl bg-white rounded-2xl shadow-2xl p-4 sm:p-8 border border-gray-200">
+        <div class="flex flex-col sm:flex-row justify-between items-center mb-8 space-y-4 sm:space-y-0">
+            <div class="flex items-center justify-center w-full sm:w-auto">
+                <i class="fas fa-clipboard-list text-indigo-600 mr-4 text-4xl"></i>
+                <h1 class="text-2xl sm:text-4xl font-bold text-gray-800">Todo Manager</h1>
+            </div>
+            <div id="filterButtons" class="flex space-x-2">
+                <button data-filter="all" class="filter-btn bg-indigo-500 text-white px-3 py-1 rounded hover:bg-indigo-600 text-sm sm:text-base">All</button>
+                <button data-filter="completed" class="filter-btn bg-gray-200 text-gray-700 px-3 py-1 rounded hover:bg-gray-300 text-sm sm:text-base">Completed</button>
+            </div>
+        </div>
+        
+        <div class="flex flex-col sm:flex-row mb-6 shadow-lg rounded-xl overflow-hidden">
+            <input 
+                id="todoInput" 
+                type="text" 
+                placeholder="Enter a new task" 
+                class="w-full p-4 text-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-base sm:text-lg"
+            >
+            <button 
+                id="addTodoBtn"
+                class="w-full sm:w-auto bg-indigo-500 text-white px-6 py-4 sm:py-0 hover:bg-indigo-600 transition-colors flex items-center justify-center"
+            >
+                <i class="fas fa-plus mr-2"></i>Add Task
+            </button>
+        </div>
+
+        <div id="statsContainer" class="mb-4 flex flex-col sm:flex-row justify-between text-gray-600 space-y-2 sm:space-y-0 text-sm sm:text-base">
+            <span id="totalTasks">Total Tasks: 0</span>
+            <span id="completedTasks">Completed: 0</span>
+        </div>
+
+        <ul id="todoList" class="space-y-4"></ul>
+    </div>
+
+    <script>
+        const todoInput = document.getElementById('todoInput');
+        const addTodoBtn = document.getElementById('addTodoBtn');
+        const todoList = document.getElementById('todoList');
+        const filterButtons = document.getElementById('filterButtons');
+        const statsContainer = document.getElementById('statsContainer');
+
+        let todos = JSON.parse(localStorage.getItem('todos')) || [];
+        let currentFilter = 'all';
+
+        function saveToLocalStorage() {
+            localStorage.setItem('todos', JSON.stringify(todos));
+        }
+
+        function updateStats() {
+            const totalTasks = todos.length;
+            const completedTasks = todos.filter(todo => todo.completed).length;
+
+            document.getElementById('totalTasks').textContent = `Total Tasks: ${totalTasks}`;
+            document.getElementById('completedTasks').textContent = `Completed: ${completedTasks}`;
+        }
+
+        function renderTodos() {
+            todoList.innerHTML = '';
+            const filteredTodos = todos.filter(todo => {
+                if (currentFilter === 'completed') return todo.completed;
+                return true;
+            });
+
+            filteredTodos.forEach((todo, index) => {
+                const li = document.createElement('li');
+                li.className = `
+                    flex flex-col sm:flex-row items-center p-4 rounded-xl 
+                    ${todo.completed ? 'bg-green-50 border-l-4 border-green-500' : 'bg-gray-50 border-l-4'}
+                    transition-all duration-200 hover:shadow-lg relative space-y-2 sm:space-y-0
+                `;
+
+                const checkbox = document.createElement('input');
+                checkbox.type = 'checkbox';
+                checkbox.checked = todo.completed;
+                checkbox.className = 'mr-3';
+                checkbox.addEventListener('change', () => toggleTodo(index));
+
+                const todoText = document.createElement('span');
+                todoText.textContent = todo.text;
+                todoText.className = `
+                    w-full sm:flex-grow text-center sm:text-left
+                    ${todo.completed ? 'line-through text-gray-400' : 'text-gray-800'}
+                `;
+
+                const actionContainer = document.createElement('div');
+                actionContainer.className = 'flex items-center space-x-3 mt-2 sm:mt-0';
+
+                const editBtn = document.createElement('button');
+                editBtn.innerHTML = '<i class="fas fa-edit text-blue-400 hover:text-blue-600"></i>';
+                editBtn.addEventListener('click', () => editTodo(index));
+
+                const deleteBtn = document.createElement('button');
+                deleteBtn.innerHTML = '<i class="fas fa-trash-alt text-red-400 hover:text-red-600"></i>';
+                deleteBtn.addEventListener('click', () => deleteTodo(index));
+
+                li.appendChild(checkbox);
+                li.appendChild(todoText);
+                li.appendChild(actionContainer);
+                actionContainer.appendChild(editBtn);
+                actionContainer.appendChild(deleteBtn);
+
+                todoList.appendChild(li);
+            });
+
+            updateStats();
+        }
+
+        function addTodo() {
+            const text = todoInput.value.trim();
+            if (text) {
+                todos.push({ 
+                    text, 
+                    completed: false,
+                    createdAt: new Date().toISOString()
+                });
+                todoInput.value = '';
+                saveToLocalStorage();
+                renderTodos();
+            }
+        }
+
+        function toggleTodo(index) {
+            todos[index].completed = !todos[index].completed;
+            saveToLocalStorage();
+            renderTodos();
+        }
+
+        function editTodo(index) {
+            const newText = prompt('Edit todo:', todos[index].text);
+            if (newText !== null && newText.trim()) {
+                todos[index].text = newText.trim();
+                saveToLocalStorage();
+                renderTodos();
+            }
+        }
+
+        function deleteTodo(index) {
+            todos.splice(index, 1);
+            saveToLocalStorage();
+            renderTodos();
+        }
+
+        // Filter functionality
+        filterButtons.addEventListener('click', (e) => {
+            if (e.target.classList.contains('filter-btn')) {
+                currentFilter = e.target.getAttribute('data-filter');
+                
+                // Update button styles
+                filterButtons.querySelectorAll('.filter-btn').forEach(btn => {
+                    btn.classList.remove('bg-indigo-500', 'text-white');
+                    btn.classList.add('bg-gray-200', 'text-gray-700');
+                });
+                
+                e.target.classList.remove('bg-gray-200', 'text-gray-700');
+                e.target.classList.add('bg-indigo-500', 'text-white');
+                
+                renderTodos();
+            }
+        });
+
+        addTodoBtn.addEventListener('click', addTodo);
+        todoInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') addTodo();
+        });
+
+        // Initial render
+        renderTodos();
+    </script>
+</body>
+</html>
+
+
+
+
+
+
+
+
+<!-- <!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Professional Todo Manager with Supabase</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body class="bg-gradient-to-br from-gray-100 to-gray-200 min-h-screen flex items-center justify-center p-4">
+    <div class="w-full max-w-2xl bg-white rounded-2xl shadow-2xl p-4 sm:p-8 border border-gray-200">
+        <div class="flex flex-col sm:flex-row justify-between items-center mb-8 space-y-4 sm:space-y-0">
+            <div class="flex items-center justify-center w-full sm:w-auto">
+                <i class="fas fa-clipboard-list text-indigo-600 mr-4 text-4xl"></i>
+                <h1 class="text-2xl sm:text-4xl font-bold text-gray-800">Todo Manager</h1>
+            </div>
+            <div id="filterButtons" class="flex space-x-2">
+                <button data-filter="all" class="filter-btn bg-indigo-500 text-white px-3 py-1 rounded hover:bg-indigo-600 text-sm sm:text-base">All</button>
+                <button data-filter="completed" class="filter-btn bg-gray-200 text-gray-700 px-3 py-1 rounded hover:bg-gray-300 text-sm sm:text-base">Completed</button>
+            </div>
+        </div>
+        
+        <div class="flex flex-col sm:flex-row mb-6 shadow-lg rounded-xl overflow-hidden">
+            <input 
+                id="todoInput" 
+                type="text" 
+                placeholder="Enter a new task" 
+                class="w-full p-4 text-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-base sm:text-lg"
+            >
+            <button 
+                id="addTodoBtn"
+                class="w-full sm:w-auto bg-indigo-500 text-white px-6 py-4 sm:py-0 hover:bg-indigo-600 transition-colors flex items-center justify-center"
+            >
+                <i class="fas fa-plus mr-2"></i>Add Task
+            </button>
+        </div>
+
+        <div id="statsContainer" class="mb-4 flex flex-col sm:flex-row justify-between text-gray-600 space-y-2 sm:space-y-0 text-sm sm:text-base">
+            <span id="totalTasks">Total Tasks: 0</span>
+            <span id="completedTasks">Completed: 0</span>
+        </div>
+
+        <ul id="todoList" class="space-y-4"></ul>
+    </div>
+
+    <script>
+        // Replace with your actual Supabase project URL and API key
+        const supabaseUrl = 'YOUR_SUPABASE_PROJECT_URL';
+        const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9waXV5bXZzbXVjcXlwdGNqZGpqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzIyMDkwNzYsImV4cCI6MjA0Nzc4NTA3Nn0.R7qcz76p5oq38zhCEohJ7uEV2NScKNPr1WybRW3V8Pw';
+        const supabase = createClient(supabaseUrl, supabaseKey);
+
+        const todoInput = document.getElementById('todoInput');
+        const addTodoBtn = document.getElementById('addTodoBtn');
+        const todoList = document.getElementById('todoList');
+        const filterButtons = document.getElementById('filterButtons');
+        const statsContainer = document.getElementById('statsContainer');
+
+        let todos = [];
+        let currentFilter = 'all';
+
+        async function fetchTodos() {
+            const { data, error } = await supabase
+                .from('todos')
+                .select('*')
+                .order('created_at', { ascending: false });
+
+            if (error) {
+                console.error('Error fetching todos:', error);
+                return;
+            }
+
+            todos = data || [];
+            renderTodos();
+        }
+
+        function updateStats() {
+            const totalTasks = todos.length;
+            const completedTasks = todos.filter(todo => todo.completed).length;
+
+            document.getElementById('totalTasks').textContent = `Total Tasks: ${totalTasks}`;
+            document.getElementById('completedTasks').textContent = `Completed: ${completedTasks}`;
+        }
+
+        function renderTodos() {
+            todoList.innerHTML = '';
+            const filteredTodos = todos.filter(todo => {
+                if (currentFilter === 'completed') return todo.completed;
+                return true;
+            });
+
+            filteredTodos.forEach((todo) => {
+                const li = document.createElement('li');
+                li.className = `
+                    flex flex-col sm:flex-row items-center p-4 rounded-xl 
+                    ${todo.completed ? 'bg-green-50 border-l-4 border-green-500' : 'bg-gray-50 border-l-4'}
+                    transition-all duration-200 hover:shadow-lg relative space-y-2 sm:space-y-0
+                `;
+
+                const checkbox = document.createElement('input');
+                checkbox.type = 'checkbox';
+                checkbox.checked = todo.completed;
+                checkbox.className = 'mr-3';
+                checkbox.addEventListener('change', () => toggleTodo(todo.id));
+
+                const todoText = document.createElement('span');
+                todoText.textContent = todo.text;
+                todoText.className = `
+                    w-full sm:flex-grow text-center sm:text-left
+                    ${todo.completed ? 'line-through text-gray-400' : 'text-gray-800'}
+                `;
+
+                const actionContainer = document.createElement('div');
+                actionContainer.className = 'flex items-center space-x-3 mt-2 sm:mt-0';
+
+                const editBtn = document.createElement('button');
+                editBtn.innerHTML = '<i class="fas fa-edit text-blue-400 hover:text-blue-600"></i>';
+                editBtn.addEventListener('click', () => editTodo(todo.id));
+
+                const deleteBtn = document.createElement('button');
+                deleteBtn.innerHTML = '<i class="fas fa-trash-alt text-red-400 hover:text-red-600"></i>';
+                deleteBtn.addEventListener('click', () => deleteTodo(todo.id));
+
+                li.appendChild(checkbox);
+                li.appendChild(todoText);
+                li.appendChild(actionContainer);
+                actionContainer.appendChild(editBtn);
+                actionContainer.appendChild(deleteBtn);
+
+                todoList.appendChild(li);
+            });
+
+            updateStats();
+        }
+
+        async function addTodo() {
+            const text = todoInput.value.trim();
+            if (text) {
+                const { data, error } = await supabase
+                    .from('todos')
+                    .insert([{ 
+                        text, 
+                        completed: false,
+                        created_at: new Date().toISOString()
+                    }])
+                    .select();
+
+                if (error) {
+                    console.error('Error adding todo:', error);
+                    return;
+                }
+
+                todos.unshift(data[0]);
+                todoInput.value = '';
+                renderTodos();
+            }
+        }
+
+        async function toggleTodo(id) {
+            const todo = todos.find(t => t.id === id);
+            if (!todo) return;
+
+            const { data, error } = await supabase
+                .from('todos')
+                .update({ completed: !todo.completed })
+                .eq('id', id)
+                .select();
+
+            if (error) {
+                console.error('Error toggling todo:', error);
+                return;
+            }
+
+            const index = todos.findIndex(t => t.id === id);
+            todos[index] = data[0];
+            renderTodos();
+        }
+
+        async function editTodo(id) {
+            const todo = todos.find(t => t.id === id);
+            if (!todo) return;
+
+            const newText = prompt('Edit todo:', todo.text);
+            if (newText !== null && newText.trim()) {
+                const { data, error } = await supabase
+                    .from('todos')
+                    .update({ text: newText.trim() })
+                    .eq('id', id)
+                    .select();
+
+                if (error) {
+                    console.error('Error editing todo:', error);
+                    return;
+                }
+
+                const index = todos.findIndex(t => t.id === id);
+                todos[index] = data[0];
+                renderTodos();
+            }
+        }
+
+        async function deleteTodo(id) {
+            const { error } = await supabase
+                .from('todos')
+                .delete()
+                .eq('id', id);
+
+            if (error) {
+                console.error('Error deleting todo:', error);
+                return;
+            }
+
+            todos = todos.filter(todo => todo.id !== id);
+            renderTodos();
+        }
+
+        // Filter functionality
+        filterButtons.addEventListener('click', (e) => {
+            if (e.target.classList.contains('filter-btn')) {
+                currentFilter = e.target.getAttribute('data-filter');
+                
+                // Update button styles
+                filterButtons.querySelectorAll('.filter-btn').forEach(btn => {
+                    btn.classList.remove('bg-indigo-500', 'text-white');
+                    btn.classList.add('bg-gray-200', 'text-gray-700');
+                });
+                
+                e.target.classList.remove('bg-gray-200', 'text-gray-700');
+                e.target.classList.add('bg-indigo-500', 'text-white');
+                
+                renderTodos();
+            }
+        });
+
+        addTodoBtn.addEventListener('click', addTodo);
+        todoInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') addTodo();
+        });
+
+        // Initial fetch of todos
+        fetchTodos();
+    </script>
+</body>
+</html> -->
